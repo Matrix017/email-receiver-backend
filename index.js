@@ -1,11 +1,14 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const cors = require('cors');
 const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Middleware
 app.use(cors());
@@ -21,15 +24,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Configure nodemailer transporter
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
-
 // Route to handle form submission
 app.post('/send-email', upload.none(), async (req, res) => {
     console.log('Content-Type:', req.headers['content-type']);
@@ -43,14 +37,13 @@ app.post('/send-email', upload.none(), async (req, res) => {
     
     try {
         console.log(`Sending email to ${process.env.EMAIL_USER} from ${email}`);
-        await transporter.sendMail({
-            from: email,
+        const data = await resend.emails.send({
+            from: process.env.EMAIL_USER, // Must be verified in Resend
             to: process.env.EMAIL_USER,
             subject: subject || `New message from ${name}`,
-            text: message,
             html: `<p><strong>From:</strong> ${name} (${email})</p><p><strong>Subject:</strong> ${subject}</p><p><strong>Message:</strong></p><p>${message}</p>`,
         });
-        console.log('Email sent successfully');
+        console.log('Email sent successfully:', data);
         res.json({ success: true, message: 'Email sent successfully' });
     } catch (error) {
         console.error('Error sending email:', error);
